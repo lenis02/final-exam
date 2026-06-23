@@ -56,11 +56,21 @@ uvicorn app.main:app --reload
 # POST /predict  body: {"temperature": -2, "humidity": 60, "precipitation": 3.0}
 ```
 
-## 4. 테스트
+## 4. 통합 로컬 실행 (Docker Compose)
+MLflow 서버와 서비스를 한 번에 띄운다 (ngrok 없이 컨테이너끼리 통신).
+```bash
+docker compose up -d --build                                    # mlflow(5000) + app(8000)
+MLFLOW_TRACKING_URI=http://localhost:5000 python -m ml.train    # 모델 등록 + champion 별칭
+curl -X POST localhost:8000/predict -H "Content-Type: application/json" \
+     -d '{"temperature":-2,"humidity":60,"precipitation":3.0}'  # -> 추움 + 우산
+```
+> 컨테이너 간 호출 차단(DNS rebinding 403)을 막기 위해 mlflow 서버에 `--allowed-hosts` 를 지정했다.
+
+## 5. 테스트
 ```bash
 pytest -q
 ```
 
-## 5. CI/CD
+## 6. CI/CD
 `main` 브랜치 push(또는 수동 `workflow_dispatch`) 시 GitHub Actions 가
 `pytest` → `python -m ml.train` → 학습 산출물 업로드를 자동 수행한다.

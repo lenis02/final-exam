@@ -84,15 +84,23 @@
 - **Dockerfile 주요 설정**: `python:3.12-slim` → requirements 먼저 설치(레이어 캐시) → 앱 코드 복사 →
   `uvicorn app.main:app --host 0.0.0.0 --port $PORT` 로 기동. 모델은 이미지에 넣지 않고 런타임에
   `MLFLOW_TRACKING_URI`(원격)에서 로드.
-- **실행 방법**:
+- **실행 방법 (단일 컨테이너)**:
   ```bash
   docker build -t weather-clothing:latest .
   docker run -p 8000:8000 \
     -e MLFLOW_TRACKING_URI="https://<ngrok>.ngrok-free.dev" \
     -e MODEL_URI="models:/weather-model@champion" \
     weather-clothing:latest
-  # http://localhost:8000/health , POST /predict
   ```
+- **실행 방법 (통합 스택, `docker-compose.yml`)**: MLflow 서버 + 서비스를 한 번에 기동(로컬 검증용).
+  ```bash
+  docker compose up -d --build           # mlflow(5000) + app(8000)
+  MLFLOW_TRACKING_URI=http://localhost:5000 python -m ml.train   # 모델 등록 + champion
+  curl -X POST localhost:8000/predict -H "Content-Type: application/json" \
+       -d '{"temperature":-2,"humidity":60,"precipitation":3.0}'
+  ```
+- **검증 결과**: 이미지 빌드(284MB) 성공, 컨테이너 `/health` OK, `/predict` 응답 확인
+  (`-2°C/비` → `추움 + 우산`, `31°C` → `더움`). 모델은 컨테이너화된 MLflow에서 `@champion`으로 로드됨.
 
 ## 8. ML 모델 구성
 - **사용 데이터**: `ml/data/weather.csv` (240행). 컬럼 `temperature, humidity, precipitation, label`.
@@ -141,9 +149,10 @@
    "model_info":{"run_id":"c0c23d1c...","model_type":"RandomForestClassifier","test_accuracy":0.9375}}
   ```
 - **모델 정보 확인**: 응답·로그의 `model_info`(run_id/model_type/test_accuracy)로 어떤 모델이 응답했는지 추적.
-- **일부러 발생시킨 문제 / 원인 / 해결**: ⬜ (계획: MLflow 서버를 내린 상태로 `/predict` 호출 →
-  모델 로드 실패로 500 또는 `run_id="unknown"`. 원인=원격 트래킹 서버 미가용, 해결=서버/ngrok 재기동.
-  → 14번에 상세 기재) — 아래 14번의 실제 사례도 참고.
+- **일부러 발생시킨 문제 / 원인 / 해결 (실제 재현)**: champion 별칭을 등록하기 전(또는 MLflow 서버
+  미가용 상태)에 `/predict` 를 호출하니 `500 Internal Server Error` 발생. 원인은 서비스가
+  `models:/weather-model@champion` 로드에 실패한 것. MLflow에 모델 등록 + champion 별칭 부여 후
+  정상 응답으로 복구. (14번의 DNS rebinding 사례도 동일 흐름의 실제 장애였음)
 
 ## 12. 롤백 및 이전 모델 관리
 - **이전 모델 보관**: MLflow Registry가 모든 버전(v1, v2, ...)을 영구 보관.
@@ -169,7 +178,12 @@
 3. **한글 예측 결과 출력 시 `UnicodeEncodeError: 'charmap'`**
    - 원인: PowerShell 콘솔 기본 인코딩(cp1252/cp949)으로 한글 stdout 인코딩 실패(파일 자체는 UTF-8 정상).
    - 해결: `PYTHONIOENCODING=utf-8` 설정 후 실행 / 로그는 `encoding="utf-8"`로 기록.
-- ⬜ (선택) 추가 사례: 배포/서버 연동 중 겪은 문제 기재.
+4. **Docker 컨테이너 → MLflow 서버 호출 시 `403 Invalid Host header - DNS rebinding attack detected`**
+   - 원인: MLflow 서버의 DNS rebinding 보호가 컨테이너 간 요청의 `Host: mlflow:5000` 헤더를 차단.
+     (호스트에서 `localhost:5000` 으로 학습할 때는 통과해 원인 파악이 늦어짐)
+   - 해결: `docker-compose.yml` 의 mlflow 커맨드에
+     `--allowed-hosts "mlflow:5000,localhost:5000,127.0.0.1:5000,localhost,127.0.0.1"` 추가 후 재기동
+     → `/predict` 정상화.
 
 ---
 
