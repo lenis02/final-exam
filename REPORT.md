@@ -13,7 +13,10 @@
       있는 운영 체계를 만드는 것이 핵심 목표다.
  · GitHub 주소 (public): ⬜ https://github.com/<계정>/<저장소명>   (push 완료 - 실제 URL 기입)
  · 배포 주소 및 캡쳐: ⬜ Render URL (https://<서비스>.onrender.com) + 서비스 화면 캡쳐   (배포 단계에서 확정)
- · MLflow Tracking Server 주소 및 캡쳐: ⬜ ngrok https URL + MLflow UI 캡쳐   (ngrok 단계에서 확정)
+ · MLflow Tracking Server 주소: https://escapade-deflector-enforced.ngrok-free.dev
+   (로컬 MLflow 서버를 ngrok 으로 노출. 캡쳐: ⬜ 이 URL 의 MLflow UI 화면)
+   - 배포 서비스(Render)는 이 URL 을 MLFLOW_TRACKING_URI 로 사용해 모델을 원격 로드한다.
+   - 검증: 이 URL 로 MLflow API 200, 등록 모델(champion v1 / challenger v2) 조회, 모델 로드+예측까지 확인 완료.
 
 
 2. 소프트웨어 주요 기능 (서비스 / ML 분리)
@@ -214,7 +217,7 @@
 
  · (미완료) GitHub public 저장소 생성 + URL (1번)
  · (미완료) Render 배포 + URL + 캡쳐 (1, 6번)
- · (미완료) 로컬 MLflow 서버 + ngrok URL + MLflow UI 캡쳐 (1, 8-2번)
+ · (URL 완료 / 캡쳐 미완료) 로컬 MLflow 서버 + ngrok 노출 완료 → MLflow UI 캡쳐만 남음 (1, 8-2번)
  · (미완료) GitHub Actions 실행 성공 캡쳐 (6번)
  · (완료) 신규 모델(v2) 학습·비교·champion 교체/롤백 실측 (8, 10, 12, 13번)
  · (미완료) Model registry 버전/별칭 캡쳐 (12번)
