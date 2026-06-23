@@ -34,6 +34,10 @@ jobs:
           pytest -q
 
       - name: 모델 학습 실행
+        env:
+          # GitHub 저장소 Settings > Secrets 에 등록한 MLflow(ngrok) 서버 주소.
+          # 비어 있으면 config.py 가 로컬 sqlite 로 폴백한다(러너 임시 저장).
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
         run: |
           python -m ml.train
 

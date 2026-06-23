@@ -7,7 +7,7 @@ import os
 
 # --- MLflow 설정 ---
 # 로컬 실습 기본값은 sqlite. 서버를 쓰면 환경변수로 원격(ngrok 등) URL을 넣는다.
-MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI") or "sqlite:///mlflow.db"
 
 # 학습 실행(run)을 묶는 experiment 이름
 EXPERIMENT_NAME = os.getenv("MLFLOW_EXPERIMENT", "weather-clothing-local")
