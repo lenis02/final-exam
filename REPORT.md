@@ -6,42 +6,54 @@
 
 ## 1. 프로젝트 개요
 - **프로젝트 이름**: 날씨 기반 의류 추천 시스템 (weather-clothing-recommender)
-- **프로젝트 목적**: `(온도, 습도, 강수량)` 입력으로 그날 입을 의류를 추천하는 서비스에
-  MLOps 파이프라인(코드 변경 → 자동 테스트 → 학습 → MLflow 등록 → 서비스 반영 → 운영 로그/롤백)을
-  적용해, 코드 수정 없이 모델을 교체·롤백할 수 있는 운영 체계를 구축한다.
-- **GitHub 주소 (public)**: ⬜ (예: `https://github.com/<계정>/weather-clothing-recommender`)
-- **배포 주소 및 캡쳐**: ⬜ Render URL (예: `https://weather-clothing.onrender.com`) + 화면 캡쳐
-- **MLflow Tracking Server 주소 및 캡쳐**: ⬜ ngrok https URL + MLflow UI 캡쳐
+- **프로젝트 목적**:
+  - `(온도, 습도, 강수량)` 을 입력하면 그날 입을 의류를 추천하는 서비스를 제공한다.
+  - 단순 추천을 넘어, **MLOps 파이프라인**(코드 변경 → 자동 테스트 → 학습 → MLflow 등록 →
+    서비스 반영 → 운영 로그 → 모델 교체/롤백)을 구축해, **코드 수정 없이 모델을 교체·롤백**할 수
+    있는 운영 체계를 만드는 것이 핵심 목표다.
+- **GitHub 주소 (public)**: ⬜ `https://github.com/<계정>/<저장소명>`  *(push 완료 — 실제 URL 기입)*
+- **배포 주소 및 캡쳐**: ⬜ Render URL (`https://<서비스>.onrender.com`) + 서비스 화면 캡쳐  *(배포 단계에서 확정)*
+- **MLflow Tracking Server 주소 및 캡쳐**: ⬜ ngrok https URL + MLflow UI 캡쳐  *(ngrok 단계에서 확정)*
 
 ## 2. 소프트웨어 주요 기능 (서비스 / ML 분리)
-**1) 사용자 핵심 기능 (서비스)**
-- `POST /predict` : 날씨를 입력하면 추천 의류 리스트를 반환
-- `GET /health` : 서비스 상태 확인(헬스체크)
+**1) 사용자가 이용할 수 있는 핵심 기능 (서비스 영역)**
 
-**2) ML 모델이 사용되는 위치**
-- `app/model_loader.py` : MLflow 레지스트리(`models:/weather-model@champion`)에서 모델을 로드(최초 1회 캐시)
-- `app/main.py` 의 `/predict` : 로드된 모델로 체감 온도 구간을 예측
+| 엔드포인트 | 기능 |
+|-----------|------|
+| `POST /predict` | 날씨(온도/습도/강수량)를 입력하면 추천 의류 리스트를 반환 |
+| `GET /health` | 서비스 상태 확인(헬스체크) |
+
+**2) ML 모델이 사용되는 위치 (ML 영역)**
+- `app/model_loader.py` : MLflow 레지스트리(`models:/weather-model@champion`)에서 운영 모델을 로드(최초 1회 캐시).
+- `app/main.py` 의 `/predict` : 로드된 모델로 입력 날씨의 **체감 온도 구간(label)** 을 예측.
 
 **3) 입력 데이터와 출력 결과**
-- 입력: `{ "temperature": float, "humidity": 0~100, "precipitation": >=0 }`
+- 입력: `{ "temperature": float(°C), "humidity": 0~100(%), "precipitation": >=0(mm) }`
 - 출력:
 ```json
 {
   "label": "추움",
   "items": ["패딩", "목도리", "기모바지", "장갑", "우산"],
-  "model_info": {"run_id": "...", "model_type": "RandomForestClassifier", "test_accuracy": 0.9375}
+  "model_info": {"run_id": "c68be8e9...", "model_type": "RandomForestClassifier", "test_accuracy": 0.9375}
 }
 ```
-- **서비스 로직 vs ML 로직 분리**: 구간 예측(label)은 **ML 모델**, 구간→의류 매핑과 강수 시 "우산"
-  추가는 **서비스 규칙**(`config.CLOTHING_MAP`, `app/main.build_items`)으로 분리.
+
+**서비스 로직과 ML 로직의 분리**
+- **ML 로직**: 날씨 → 체감 온도 구간(label) 분류 (학습된 모델이 담당).
+- **서비스 로직**: 구간 → 의류 매핑(`config.CLOTHING_MAP`), 강수 시 "우산" 추가(`app/main.build_items`).
+- 이렇게 분리하면 모델을 교체해도 추천 규칙은 그대로 유지되고, 규칙만 바꿔도 모델 재학습이 불필요하다.
 
 ## 3. 실행 환경
-- **OS**: Windows 11 (10.0.26200)
-- **Git/GitHub**: git 2.47.0.windows.1 / GitHub(public 저장소) + GitHub Actions
-- **Docker**: Docker 29.4.0 (python:3.12-slim 베이스 이미지)
-- **MLflow**: mlflow 3.10.1 (Tracking + Model Registry), backend-store `sqlite:///mlflow.db`
-- **Python/패키지**: conda env `weather-clothing` (Python 3.12.13), scikit-learn 1.8.0, FastAPI 0.128.0
-- **배포 환경**: Render (Docker runtime, free plan) + 로컬 MLflow 서버를 ngrok 으로 노출
+
+| 구분 | 내용 |
+|------|------|
+| **OS** | Windows 11 (10.0.26200) |
+| **Git / GitHub** | git 2.47.0.windows.1, GitHub public 저장소 + GitHub Actions(CI) |
+| **Docker** | Docker 29.4.0, 베이스 이미지 `python:3.12-slim` (서비스 이미지 284MB) |
+| **MLflow** | mlflow 3.10.1 — Tracking + Model Registry, backend-store `sqlite`, `--serve-artifacts` |
+| **Python / 패키지** | conda env `weather-clothing` (Python 3.12.13), scikit-learn 1.8.0, FastAPI 0.128.0, uvicorn 0.40.0, pandas 2.2.3 |
+| **배포 환경** | Render (Docker runtime, free plan). 로컬 MLflow 서버를 ngrok 으로 외부 노출하여 배포 서비스가 원격 로드 |
+| **로컬 통합 검증** | `docker-compose.yml` 로 MLflow 서버 + 서비스를 한 번에 기동(ngrok 없이 컨테이너 간 통신으로 E2E 확인) |
 
 ## 4. 전체 MLOps 파이프라인 구조
 - **코드 변경 흐름**: 로컬 수정 → 커밋 → `git push origin main`
