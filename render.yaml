@@ -1,0 +1,14 @@
+# Render 배포 정의 (Infrastructure as Code)
+# GitHub 저장소를 Render 에 연결하면 이 파일을 읽어 서비스를 생성한다.
+services:
+  - type: web
+    name: weather-clothing
+    runtime: docker
+    plan: free
+    envVars:
+      # 로컬 MLflow 서버를 ngrok 으로 노출한 https URL (대시보드에서 직접 입력)
+      - key: MLFLOW_TRACKING_URI
+        sync: false
+      # 서비스가 불러올 운영 모델 (champion 별칭)
+      - key: MODEL_URI
+        value: models:/weather-model@champion

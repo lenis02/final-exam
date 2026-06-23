@@ -1,0 +1,17 @@
+.git/
+.github/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# MLflow 로컬 산출물 (모델은 원격 서버에서 로드)
+mlflow.db
+mlruns/
+mlartifacts/
+ml/artifacts/
+
+# 런타임 로그 / 문서 / 테스트 (서빙 이미지에 불필요)
+logs/
+tests/
+*.pdf
+*.md
