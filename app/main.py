@@ -13,6 +13,43 @@ from ml.data_loader import FEATURES
 
 app = FastAPI(title="날씨 기반 의류 추천 시스템")
 
+from fastapi.responses import HTMLResponse
+
+@app.get("/", response_class=HTMLResponse)
+def read_root():
+    return """
+    <html>
+        <body style="font-family: sans-serif; padding: 20px;">
+            <h2>날씨 기반 의류 추천 시스템</h2>
+            <form id="weatherForm">
+                온도 (°C): <input type="number" id="temp" value="20" step="0.1"><br><br>
+                습도 (%): <input type="number" id="hum" value="50" step="0.1"><br><br>
+                강수량 (mm): <input type="number" id="rain" value="0" step="0.1"><br><br>
+                <button type="button" onclick="predict()">추천 받기</button>
+            </form>
+            <div id="result" style="margin-top: 20px; border: 1px solid #ccc; padding: 10px;"></div>
+
+            <script>
+            async function predict() {
+                const data = {
+                    temperature: parseFloat(document.getElementById('temp').value),
+                    humidity: parseFloat(document.getElementById('hum').value),
+                    precipitation: parseFloat(document.getElementById('rain').value)
+                };
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                document.getElementById('result').innerHTML = 
+                    "<strong>결과:</strong> " + result.label + "<br>" +
+                    "<strong>추천 의류:</strong> " + result.items.join(", ");
+            }
+            </script>
+        </body>
+    </html>
+    """
 
 def build_items(label: str, precipitation: float) -> list:
     """예측 구간(label) + 강수 여부로 최종 추천 리스트를 만든다."""
