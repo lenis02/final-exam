@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# MLflow 로컬 산출물
+mlflow.db
+mlruns/
+mlartifacts/
+ml/artifacts/
+
+# 예측 로그
+logs/*.log
+
+# 강의자료(저작권) / 에디터·하니스 설정
+*.pdf
+.claude/

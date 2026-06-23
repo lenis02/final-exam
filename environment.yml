@@ -1,0 +1,9 @@
+name: weather-clothing
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip
+  # install via pip to match requirements.txt versions
+  - pip:
+      - -r requirements.txt
