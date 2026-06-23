@@ -10,6 +10,7 @@ import mlflow.sklearn
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier
 
 from config import EXPERIMENT_NAME, MLFLOW_TRACKING_URI, REGISTERED_MODEL_NAME
 from ml.data_loader import FEATURES, load_data
@@ -21,10 +22,20 @@ MODEL_PATH = os.path.join(ARTIFACT_DIR, "weather_model.joblib")
 N_ESTIMATORS = 100
 RANDOM_STATE = 42
 
+# 실험할 모델 종류: "rf"(RandomForest, 기본) | "dt"(DecisionTree)
+MODEL_TYPE = os.getenv("MODEL_TYPE", "rf")
+
+
+def build_estimator():
+    """MODEL_TYPE 에 맞는 분류기를 생성한다."""
+    if MODEL_TYPE == "dt":
+        return DecisionTreeClassifier(random_state=RANDOM_STATE)
+    return RandomForestClassifier(n_estimators=N_ESTIMATORS, random_state=RANDOM_STATE)
+
 
 def train_model(X_train, y_train):
-    """RandomForest 분류기를 학습해서 반환 (테스트에서도 재사용)."""
-    model = RandomForestClassifier(n_estimators=N_ESTIMATORS, random_state=RANDOM_STATE)
+    """분류기를 학습해서 반환 (테스트에서도 재사용)."""
+    model = build_estimator()
     model.fit(X_train, y_train)
     return model
 
@@ -42,17 +53,19 @@ def main():
     mlflow.set_registry_uri(MLFLOW_TRACKING_URI)
     mlflow.set_experiment(EXPERIMENT_NAME)
 
+    model = train_model(X_train, y_train)
+    model_type = type(model).__name__
+
     # 실험 기록 시작
-    with mlflow.start_run():
+    with mlflow.start_run(run_name=model_type):
         # 실험 설정(params) 기록
-        mlflow.log_param("model_type", "RandomForestClassifier")
-        mlflow.log_param("n_estimators", N_ESTIMATORS)
+        mlflow.log_param("model_type", model_type)
+        if isinstance(model, RandomForestClassifier):
+            mlflow.log_param("n_estimators", N_ESTIMATORS)
         mlflow.log_param("features", ",".join(FEATURES))
         mlflow.log_param("data_path", data_path)
         mlflow.log_param("train_row_count", len(X_train))
         mlflow.log_param("test_row_count", len(X_test))
-
-        model = train_model(X_train, y_train)
 
         # 성능 지표(metrics) 기록
         train_acc = accuracy_score(y_train, model.predict(X_train))
