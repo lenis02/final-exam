@@ -121,8 +121,9 @@
    train_model() 학습 → MLflow에 params/metrics/artifacts/model 기록 → weather-model 등록.
  · 평가 지표: 정확도(accuracy) - train/test 두 가지 기록.
  · 초기 모델 vs 신규 모델 비교:
-       v1 (초기): RandomForest(100),  최초 학습,                test_accuracy 0.9375
-       v2 (신규): ⬜,                  ⬜ (데이터/파라미터 변경),  test_accuracy ⬜
+       v1 (초기): RandomForest(n_estimators=100),  최초 학습,                              test_accuracy 0.9375
+       v2 (신규): DecisionTree,                    모델 종류 변경(MODEL_TYPE=dt),            test_accuracy 0.8750
+   비교 결론: 동일 테스트셋에서 v1(RandomForest)이 더 높음 → champion 유지, v2에는 challenger 별칭 부여.
 
 
 8-2. MLflow 기반 실험 관리
@@ -149,10 +150,13 @@
 
 10. 재학습 / 모델 개선 과정
 
- · 재학습 이유/방법: ⬜ (예: 데이터 추가 또는 하이퍼파라미터 변경 후 python -m ml.train 재실행)
- · 무엇이 바뀌었나(데이터/코드/파라미터): ⬜
- · 재학습 전·후 성능 비교: ⬜ (v1 0.9375 → v2 ⬜)
- · 모델 교체 결과: ⬜ (champion을 v2로 이동 후 서비스 응답의 model_info 변화 캡쳐)
+ · 재학습 이유/방법: 더 단순한 대안 모델(DecisionTree)이 RandomForest 수준의 성능을 내는지 검증하기 위해
+   challenger 를 학습. train.py 에 MODEL_TYPE 환경변수를 추가하고 MODEL_TYPE=dt python -m ml.train 으로 재학습.
+ · 무엇이 바뀌었나(데이터/코드/파라미터): 코드(모델 선택 로직 build_estimator 추가) + 파라미터(모델 종류 rf → dt).
+   학습 데이터는 동일(weather.csv 240행).
+ · 재학습 전·후 성능 비교: v1 RandomForest test_accuracy 0.9375  vs  v2 DecisionTree test_accuracy 0.8750 → v1 우위.
+ · 모델 교체 결과: champion 을 v2로 이동 + 앱 재시작 시 /predict 의 model_info 가
+   DecisionTreeClassifier(run 70d5c7d9, acc 0.875)로 바뀜을 실측 확인. 성능이 낮아 v1으로 롤백(12번 참고).
 
 
 11. 운영 로그 및 문제 대응
@@ -174,14 +178,17 @@
  · 되돌리는 방법: champion 별칭을 이전 버전으로 다시 이동(코드/재배포 불필요).
        from mlflow.tracking import MlflowClient
        MlflowClient().set_registered_model_alias("weather-model", "champion", 1)   # v1로 롤백
- · 버전 관리 화면/코드: ⬜ Model registry의 Versions/Aliases 캡쳐.
+ · 실측 롤백 결과: champion 을 v2→v1로 되돌리고 앱 재시작하니 /predict 의 model_info 가
+   RandomForestClassifier(run c68be8e9, acc 0.9375)로 복귀. 현재 상태: champion=v1, challenger=v2.
+ · 버전 관리 화면/코드: ⬜ Model registry의 Versions/Aliases 캡쳐(v1 champion, v2 challenger).
 
 
 13. 전체 파이프라인 동작 흐름
 
  · 코드 수정 → 서비스 반영: 코드 push → CI 통과 → (필요 시) 이미지 재배포 → 서비스 갱신.
  · 데이터 변경 → 재학습: ml/data/weather.csv 갱신 push → CI가 자동 재학습·신규 버전 등록.
- · 모델 변경 → 운영 반영: 신규 버전 성능 확인 → champion 별칭 이동 → 서비스가 재배포 없이 새 모델 사용.
+ · 모델 변경 → 운영 반영: 신규 버전 성능 확인 → champion 별칭 이동 → 서비스 재시작(모델 캐시 갱신) →
+   이미지 재배포 없이 새 모델로 응답. (실측: v1↔v2 교체·롤백이 응답 model_info 변화로 확인됨)
 
 
 14. 문제 해결 경험 (실제 발생)
@@ -209,5 +216,5 @@
  · (미완료) Render 배포 + URL + 캡쳐 (1, 6번)
  · (미완료) 로컬 MLflow 서버 + ngrok URL + MLflow UI 캡쳐 (1, 8-2번)
  · (미완료) GitHub Actions 실행 성공 캡쳐 (6번)
- · (미완료) 신규 모델(v2) 학습·비교·champion 교체 (8, 10, 12, 13번)
+ · (완료) 신규 모델(v2) 학습·비교·champion 교체/롤백 실측 (8, 10, 12, 13번)
  · (미완료) Model registry 버전/별칭 캡쳐 (12번)
