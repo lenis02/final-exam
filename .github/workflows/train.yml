@@ -1,0 +1,44 @@
+name: Train ML Model
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'ml/**'
+      - 'app/**'
+      - 'tests/**'
+      - 'config.py'
+      - 'requirements.txt'
+      - '.github/workflows/train.yml'
+  workflow_dispatch:
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 코드 가져오기
+        uses: actions/checkout@v4
+
+      - name: 파이썬 설치
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 라이브러리 설치
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 테스트 실행
+        run: |
+          pytest -q
+
+      - name: 모델 학습 실행
+        run: |
+          python -m ml.train
+
+      - name: 학습 결과 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: trained-model-files
+          path: ml/artifacts/
